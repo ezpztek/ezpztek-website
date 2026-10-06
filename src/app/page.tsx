@@ -110,7 +110,7 @@ const selectedBuilds: SelectedBuild[] = [
     description:
       "A focused digital home for gym information, offers, and customer inquiries.",
     variant: "arc",
-    href: "https://arcfitnessgym.vercel.com",
+    href: "https://arcfitnessgym.vercel.app",
     domain: "arcfitnessgym.vercel.com",
     image: "/arc-fitness-logo.jpg",
     imageAlt: "Arc Fitness Gym logo",
