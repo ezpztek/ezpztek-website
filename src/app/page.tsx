@@ -562,6 +562,7 @@ export default function Home() {
             <a href="#work">Selected work</a>
             <a href="#process">Process</a>
             <a href="#faq">FAQ</a>
+            <a href="/login">Client login</a>
           </nav>
           <a className="footer-cta" href="#contact">Book a free consultation</a>
         </div>

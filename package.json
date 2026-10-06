@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "admin:reset-password": "node --env-file=.env.local scripts/reset-admin-password.mjs",
+    "admin:setup-pin": "node scripts/create-emergency-pin-hash.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "next": "16.3.8",
     "nodemailer": "^10.0.15",
