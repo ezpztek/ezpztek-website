@@ -62,8 +62,8 @@ function createTransport() {
 }
 
 export function getPublicSiteUrl() {
-  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
   if (process.env.SITE_URL) return new URL(process.env.SITE_URL).origin;
+  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   throw new Error("SITE_URL_NOT_CONFIGURED");
 }

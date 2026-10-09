@@ -13,9 +13,9 @@ export type ForgotPasswordState = {
 const emailSchema = z.string().trim().email().max(254);
 
 function getBaseUrl(headerStore: Awaited<ReturnType<typeof headers>>) {
-  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-
   if (process.env.SITE_URL) return new URL(process.env.SITE_URL).origin;
+
+  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
 
   const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
   const protocol = headerStore.get("x-forwarded-proto") || "https";

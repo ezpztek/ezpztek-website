@@ -128,12 +128,23 @@ http://localhost:3000/**
 http://127.0.0.1:3000/**
 ```
 
-For production, set the Site URL to the public EZPZTEK domain and add its exact
-callback URL:
+For production, set the Supabase **Site URL** to the public EZPZTEK domain:
 
 ```text
-https://yourdomain.com/admin/auth/callback
+https://www.ezpztek.com
 ```
+
+Then add the exact callback under **Redirect URLs**:
+
+```text
+https://www.ezpztek.com/admin/auth/callback
+```
+
+Set Vercel's `SITE_URL` environment variable to the same origin. The explicit
+`SITE_URL` takes priority over localhost, including when a recovery request is
+initiated from a local development server. Recovery links created before these
+settings are corrected keep their old destination, so request a new email after
+redeploying.
 
 Administrators should request recovery emails from `/admin/forgot-password`.
 The application supplies the callback destination, exchanges the one-time PKCE
