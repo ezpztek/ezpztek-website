@@ -1,3 +1,9 @@
 .client-branch-selector { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:12px 0 24px; }
 .client-branch-selector select { padding:10px; border:1px solid #cad6da; border-radius:8px; margin-left:8px; background:#fff; color:#17242b; }
 .pos-recent-sales strong,.pos-receipt-banner strong { overflow-wrap:anywhere; }
+@media (max-width:560px) {
+  .client-branch-selector { align-items:stretch; display:grid; grid-template-columns:1fr; }
+  .client-branch-selector label { display:grid; gap:7px; }
+  .client-branch-selector select { width:100%; min-height:46px; margin-left:0; font-size:16px; }
+  .client-branch-selector .client-module-action { width:100%; }
+}

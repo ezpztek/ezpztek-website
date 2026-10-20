@@ -131,7 +131,6 @@ export function InventoryCreateDialog({
       setCategory(saved.name);
       setCategoryName("");
       setStatus(`${saved.name} is ready to use.`);
-      router.refresh();
     } catch {
       setError("The category could not be added. Check your connection and try again.");
     } finally {
@@ -237,6 +236,7 @@ export function InventoryCreateDialog({
                   disabled={busy || categoryBusy}
                 />
                 <button type="button" onClick={() => void addCategory()} disabled={busy || categoryBusy || categoryName.trim().length < 2}>
+                  {categoryBusy && <span className="client-inline-spinner" aria-hidden="true" />}
                   {categoryBusy ? "Adding…" : "Add category"}
                 </button>
               </div>
@@ -295,7 +295,10 @@ export function InventoryCreateDialog({
             </div>
             <footer className="inventory-dialog-footer">
               <button type="button" className="inventory-dialog-cancel" onClick={closeDialog} disabled={busy || categoryBusy}>{created ? "Close" : "Cancel"}</button>
-              {!created && <button type="submit" className="client-primary-button" disabled={busy || categoryBusy || photoBusy || !categories.length}>{busy ? status || "Creating item…" : photoBusy ? "Preparing photo…" : "Create item"}</button>}
+              {!created && <button type="submit" className="client-primary-button" disabled={busy || categoryBusy || photoBusy || !categories.length}>
+                {(busy || photoBusy) && <span className="client-inline-spinner" aria-hidden="true" />}
+                {busy ? status || "Creating item…" : photoBusy ? "Preparing photo…" : "Create item"}
+              </button>}
             </footer>
           </form>
         </div>

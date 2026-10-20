@@ -40,7 +40,9 @@ export async function GET(_request: Request, context: ImageRouteContext) {
       status: 302,
       headers: {
         Location: location,
-        "Cache-Control": "private, no-store",
+        // Keep authorization private while avoiding a database + STS round trip on every rerender.
+        // The cache lifetime remains shorter than the five-minute signed S3 URL.
+        "Cache-Control": "private, max-age=240",
         "X-Content-Type-Options": "nosniff",
       },
     });
