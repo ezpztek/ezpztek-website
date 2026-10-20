@@ -122,7 +122,16 @@ export async function POST(request: Request) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (presignError) {
+    const rawCode = presignError instanceof Error ? presignError.name : "UnknownError";
+    const diagnosticCode = /^[A-Za-z][A-Za-z0-9]+$/.test(rawCode)
+      ? rawCode
+      : "UnknownError";
+    console.error("Inventory image presign failed", {
+      code: diagnosticCode,
+      region: process.env.AWS_REGION?.trim() || "missing",
+      roleConfigured: Boolean(process.env.AWS_ROLE_ARN?.trim()),
+    });
     await database.rpc("fail_inventory_product_image", {
       p_client_id: authorization.client.clientId,
       p_image_id: reservation.image_id,
@@ -130,7 +139,7 @@ export async function POST(request: Request) {
     });
     return jsonError(
       "image_storage_unavailable",
-      "AWS image storage is temporarily unavailable. Please try again.",
+      `AWS could not prepare the upload (${diagnosticCode}). Check the Vercel function logs.`,
       503,
     );
   }

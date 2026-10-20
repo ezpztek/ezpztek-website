@@ -26,6 +26,7 @@ export function InventoryCategoryFilter({
     nextParams.delete("created");
     nextParams.delete("updated");
     nextParams.delete("error");
+    nextParams.delete("page");
 
     const query = nextParams.toString();
     startTransition(() => {

@@ -32,6 +32,7 @@ function CheckoutButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button className="pos-checkout-button" disabled={disabled || pending}>
+      {pending && <span className="client-inline-spinner" aria-hidden="true" />}
       {pending ? "Completing sale…" : "Complete sale"}
     </button>
   );

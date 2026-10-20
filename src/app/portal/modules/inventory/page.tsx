@@ -7,6 +7,7 @@ import { getClientBranch } from "@/lib/branches";
 import { inventoryUnits, inventoryUnitValues, isGeneratedInventorySku } from "@/lib/inventory/catalog";
 import { isInventoryImageStorageConfigured } from "@/lib/inventory-images/s3";
 import { connection } from "next/server";
+import Link from "next/link";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { requireClientModule } from "@/lib/client-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,10 +19,12 @@ const peso = new Intl.NumberFormat("en-PH", {
   minimumFractionDigits: 2,
 });
 
+const INVENTORY_PAGE_SIZE = 40;
+
 export default async function InventoryManagementPage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string; category?: string; created?: string; updated?: string; error?: string }>;
+  searchParams: Promise<{ branch?: string; category?: string; page?: string; created?: string; updated?: string; error?: string }>;
 }) {
   await connection();
   const { client } = await requireClientModule("inventory");
@@ -69,6 +72,24 @@ export default async function InventoryManagementPage({
       (product) => product.category.trim().toLocaleLowerCase("en-PH") === selectedCategoryKey,
     )
     : products;
+  const requestedPage = Number.parseInt(params.page || "1", 10);
+  const pageCount = Math.max(1, Math.ceil(displayedProducts.length / INVENTORY_PAGE_SIZE));
+  const currentPage = Number.isSafeInteger(requestedPage)
+    ? Math.min(Math.max(requestedPage, 1), pageCount)
+    : 1;
+  const firstVisibleIndex = (currentPage - 1) * INVENTORY_PAGE_SIZE;
+  const visibleProducts = displayedProducts.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + INVENTORY_PAGE_SIZE,
+  );
+  function pageHref(page: number) {
+    const query = new URLSearchParams();
+    if (params.branch) query.set("branch", params.branch);
+    if (selectedCategory) query.set("category", selectedCategory);
+    if (page > 1) query.set("page", String(page));
+    const value = query.toString();
+    return value ? `/portal/modules/inventory?${value}` : "/portal/modules/inventory";
+  }
   const imageUploadEnabled = !imageError && isInventoryImageStorageConfigured();
   type ProductImageRow = {
     id: string;
@@ -141,14 +162,14 @@ export default async function InventoryManagementPage({
 
       <section className="inventory-workspace">
         <div className="inventory-list">
-          <div className="client-section-heading"><div><p className="client-kicker">Product catalog</p><h2>{selectedCategory || "All items"}</h2></div><span>{displayedProducts.length} products</span></div>
+          <div className="client-section-heading"><div><p className="client-kicker">Product catalog</p><h2>{selectedCategory || "All items"}</h2></div><span>{displayedProducts.length ? `${firstVisibleIndex + 1}–${firstVisibleIndex + visibleProducts.length} of ` : ""}{displayedProducts.length} products</span></div>
           <InventoryCategoryFilter
             categories={categories.map((item) => item.name)}
             selectedCategory={selectedCategory}
             shownCount={displayedProducts.length}
             totalCount={products.length}
           />
-          {displayedProducts.map((product) => {
+          {visibleProducts.map((product) => {
             const productImages = imagesByProduct.get(product.id) || [];
             const coverImage = productImages.find((image) => image.status === "ready" && image.isPrimary)
               || productImages.find((image) => image.status === "ready");
@@ -205,6 +226,17 @@ export default async function InventoryManagementPage({
           })}
           {!products.length && <div className="client-module-empty"><span>01</span><h2>Add your first item</h2><p>Products with positive stock automatically become available in POS.</p></div>}
           {!!products.length && !displayedProducts.length && <div className="client-module-empty compact"><span>0 items</span><h2>No items in this category</h2><p>Choose All categories above or assign an item to {selectedCategory}.</p></div>}
+          {pageCount > 1 && (
+            <nav className="inventory-pagination" aria-label="Inventory pages">
+              {currentPage > 1
+                ? <Link href={pageHref(currentPage - 1)} scroll={false}>← Previous</Link>
+                : <span aria-disabled="true">← Previous</span>}
+              <strong>Page {currentPage} of {pageCount}</strong>
+              {currentPage < pageCount
+                ? <Link href={pageHref(currentPage + 1)} scroll={false}>Next →</Link>
+                : <span aria-disabled="true">Next →</span>}
+            </nav>
+          )}
         </div>
 
       </section>

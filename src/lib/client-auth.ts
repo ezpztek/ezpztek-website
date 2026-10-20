@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createAuthClient } from "@/lib/supabase/server";
@@ -14,7 +15,7 @@ export type ClientSession = {
   status: "pending" | "approved" | "suspended" | "rejected";
 };
 
-export async function getClientSession(): Promise<ClientSession | null> {
+export const getClientSession = cache(async (): Promise<ClientSession | null> => {
   if (!hasAdminConfiguration()) return null;
 
   const authClient = await createAuthClient();
@@ -44,7 +45,15 @@ export async function getClientSession(): Promise<ClientSession | null> {
     businessName: relatedClient?.business_name || "Your business",
     status: account.status as ClientSession["status"],
   };
-}
+});
+
+const touchClientSession = cache(async (userId: string) => {
+  const adminClient = createAdminClient();
+  await adminClient
+    .from("client_portal_accounts")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("user_id", userId);
+});
 
 export async function requireClient({
   allowPending = false,
@@ -59,11 +68,7 @@ export async function requireClient({
     redirect("/login?access=unavailable");
   }
 
-  const adminClient = createAdminClient();
-  await adminClient
-    .from("client_portal_accounts")
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq("user_id", client.userId);
+  await touchClientSession(client.userId);
 
   return client;
 }

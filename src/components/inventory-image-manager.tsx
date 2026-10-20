@@ -93,6 +93,7 @@ export function InventoryImageManager({
         </div>
         <div className="inventory-image-actions">
           <label className={`inventory-image-upload ${controlsDisabled ? "disabled" : ""}`} htmlFor={inputId}>
+            {busy && <span className="client-inline-spinner dark" aria-hidden="true" />}
             {busy ? "Working…" : "Upload photo"}
           </label>
           <label className={`inventory-image-upload camera ${controlsDisabled ? "disabled" : ""}`} htmlFor={cameraInputId}>
