@@ -254,6 +254,9 @@ After migrations 007 and 010, apply
 [`supabase/migrations/202610200011_inventory_catalog_options.sql`](supabase/migrations/202610200011_inventory_catalog_options.sql)
 for client-managed category options, canonical units, and generated SKUs when
 the optional SKU field is left blank.
+Then apply
+[`supabase/migrations/202610210012_short_pos_receipt_numbers.sql`](supabase/migrations/202610210012_short_pos_receipt_numbers.sql)
+to generate short receipts such as `EZ-BBK-20261021-0001`.
 
 The three modules share one stock balance:
 
@@ -300,6 +303,7 @@ npm run build
 - `supabase/migrations/202610070006_create_inventory_pos.sql` — shared inventory ledger, atomic POS, and stock control
 - `supabase/migrations/202610120010_inventory_product_images.sql` — private S3 image metadata, ownership, slots, and lifecycle
 - `supabase/migrations/202610200011_inventory_catalog_options.sql` — managed categories, fixed units, and optional SKU generation
+- `supabase/migrations/202610210012_short_pos_receipt_numbers.sql` — store-coded four-digit daily POS receipt numbers
 - `src/app/api/inventory/images` — authenticated upload, verification, read, and deletion routes
 - `src/app/admin` — protected operations workspace
 - `src/app/(client-auth)` — client registration and login

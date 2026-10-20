@@ -33,6 +33,7 @@ truncate table
   public.delivery_orders,
   public.delivery_connections,
   public.delivery_audit,
+  public.pos_receipt_counters,
   public.pos_sale_items,
   public.inventory_stock_movements,
   public.pos_sales,
@@ -76,6 +77,7 @@ commit;
 -- select count(*) from public.inventory_categories;       -- 0
 -- select count(*) from public.inventory_product_images;   -- 0
 -- select count(*) from public.pos_sales;                  -- 0
+-- select count(*) from public.pos_receipt_counters;       -- 0
 -- select count(*) from public.delivery_connections;       -- 0
 -- select count(*) from public.delivery_orders;            -- 0
 -- select count(*) from public.admin_users;                -- unchanged
