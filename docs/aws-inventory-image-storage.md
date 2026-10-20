@@ -133,7 +133,7 @@ Reference: [Vercel's AWS OIDC setup](https://vercel.com/docs/oidc/aws).
 Local `.env.local`:
 
 ```dotenv
-AWS_REGION=ap-southeast-1
+AWS_REGION=ap-southeast-2
 AWS_S3_INVENTORY_BUCKET=ezpztek-inventory-images-development
 AWS_ROLE_ARN=
 ```

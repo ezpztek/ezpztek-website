@@ -52,7 +52,7 @@ Copy `.env.example` to `.env.local` and replace every placeholder:
 | `SMTP_PASS` | Hostinger mailbox password |
 | `SMTP_FROM_NAME` | Sender name shown to recipients |
 | `CONTACT_TO_EMAIL` | Inbox that receives new inquiry notifications |
-| `AWS_REGION` | Region for the private inventory-image bucket; `ap-southeast-1` is the Singapore default |
+| `AWS_REGION` | Region for the private inventory-image bucket; this deployment uses `ap-southeast-2` (Sydney) |
 | `AWS_S3_INVENTORY_BUCKET` | Private S3 bucket name; never expose it through a `NEXT_PUBLIC_` variable |
 | `AWS_ROLE_ARN` | Vercel OIDC role ARN; leave empty locally when using the AWS CLI credential chain |
 

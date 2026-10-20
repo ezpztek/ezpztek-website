@@ -17,6 +17,19 @@ export type InventoryImageIntent = {
   checksumSha256: string;
 };
 
+const S3_UPLOAD_ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: "AWS denied permission to save the image. Check the role and bucket policies.",
+  AuthorizationHeaderMalformed: "The AWS upload was signed for the wrong region.",
+  BadDigest: "AWS rejected the image checksum. Please choose the image again.",
+  EntityTooLarge: "The image is larger than the AWS upload limit.",
+  ExpiredToken: "The secure AWS upload expired. Please try again.",
+  IncorrectEndpoint: "The S3 bucket region does not match AWS_REGION.",
+  InvalidAccessKeyId: "AWS could not recognize the upload credentials.",
+  InvalidPolicyDocument: "AWS rejected the secure upload policy.",
+  RequestTimeTooSkewed: "The device clock is too far from the correct time.",
+  SignatureDoesNotMatch: "AWS rejected the upload signature. Check the bucket region and signed fields.",
+};
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_BASE64_PATTERN = /^[A-Za-z0-9+/]{43}=$/;
 
@@ -138,4 +151,15 @@ export function isSameOriginRequest(
   } catch {
     return false;
   }
+}
+
+/** Convert an S3 XML failure into a useful message without exposing signed fields. */
+export function inventoryImageUploadError(status: number, responseBody: string) {
+  const code = responseBody.match(/<Code>([^<]{1,80})<\/Code>/)?.[1];
+  const safeCode = code && /^[A-Za-z][A-Za-z0-9]+$/.test(code) ? code : undefined;
+  if (safeCode && S3_UPLOAD_ERROR_MESSAGES[safeCode]) {
+    return `${S3_UPLOAD_ERROR_MESSAGES[safeCode]} (AWS ${status}: ${safeCode})`;
+  }
+  if (safeCode) return `AWS rejected the image upload (HTTP ${status}: ${safeCode}).`;
+  return `AWS rejected the image upload (HTTP ${status}). Check the S3 CORS, IAM, and bucket policies.`;
 }

@@ -30,7 +30,7 @@ let cachedClient: S3Client | undefined;
 let cachedIdentity = "";
 
 function storageConfiguration() {
-  const region = process.env.AWS_REGION?.trim() || "ap-southeast-1";
+  const region = process.env.AWS_REGION?.trim() || "ap-southeast-2";
   const bucket = process.env.AWS_S3_INVENTORY_BUCKET?.trim();
   const roleArn = process.env.AWS_ROLE_ARN?.trim();
   if (!bucket || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket)) {

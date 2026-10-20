@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildInventoryImageObjectKey,
   hasExpectedImageSignature,
+  inventoryImageUploadError,
   isSameOriginRequest,
   MAX_INVENTORY_IMAGE_BYTES,
   parseInventoryImageIntent,
@@ -88,4 +89,19 @@ test('mutation origin comparison requires an exact origin match', () => {
     'https',
   ), false);
   assert.equal(isSameOriginRequest('https://ezpztek.com/api/test', null), false);
+});
+
+test('S3 upload failures expose only a safe status and error code', () => {
+  assert.equal(
+    inventoryImageUploadError(403, '<Error><Code>AccessDenied</Code><Message>secret detail</Message></Error>'),
+    'AWS denied permission to save the image. Check the role and bucket policies. (AWS 403: AccessDenied)',
+  );
+  assert.equal(
+    inventoryImageUploadError(400, '<Error><Code>AuthorizationHeaderMalformed</Code></Error>'),
+    'The AWS upload was signed for the wrong region. (AWS 400: AuthorizationHeaderMalformed)',
+  );
+  assert.equal(
+    inventoryImageUploadError(500, '<html>not XML</html>'),
+    'AWS rejected the image upload (HTTP 500). Check the S3 CORS, IAM, and bucket policies.',
+  );
 });

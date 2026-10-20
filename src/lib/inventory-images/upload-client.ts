@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  inventoryImageUploadError,
   inventoryImageContentTypes,
   MAX_INVENTORY_IMAGE_BYTES,
 } from "@/lib/inventory-images/core";
@@ -159,7 +160,8 @@ export async function uploadInventoryImage({
     credentials: "omit",
   });
   if (!uploadResponse.ok) {
-    throw new Error("AWS did not accept the upload. Check the bucket CORS setup and try again.");
+    const responseBody = await uploadResponse.text().catch(() => "");
+    throw new Error(inventoryImageUploadError(uploadResponse.status, responseBody));
   }
 
   onStatus?.("Verifying image…");
