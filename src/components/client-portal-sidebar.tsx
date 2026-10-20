@@ -30,6 +30,9 @@ export function ClientPortalSidebar({
             const href = `/portal/modules/${module.code}`;
             return <Link href={href} className={pathname === href ? "active" : ""} key={module.code}>{module.name}</Link>;
           })}
+        {modules.some((module) => module.code === "pos") && (
+            <Link href="/portal/modules/integrations" className={pathname === "/portal/modules/integrations" ? "active" : ""}>Delivery integrations</Link>
+          )}
         </nav>
       )}
       <div className="client-sidebar-foot">

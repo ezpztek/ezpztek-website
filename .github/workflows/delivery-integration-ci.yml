@@ -1,0 +1,52 @@
+name: EZPZTEK delivery integration checks
+on:
+  pull_request:
+  push:
+    branches: ['codex/foodpanda-integration-foundation']
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:delivery
+      - run: npm run test:images
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: ezpztek_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:local_test_only@localhost:5432/ezpztek_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable database
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/delivery-bootstrap.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/202610070006_create_inventory_pos.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/delivery-legacy-fixtures.sql
+      - name: Verify migrations and transaction invariants
+        run: |
+          for migration in supabase/migrations/2026101200*.sql; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/202610200011_inventory_catalog_options.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/delivery-invariants.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory-images-invariants.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory-catalog-invariants.sql
