@@ -8,11 +8,18 @@
     "start": "next start",
     "lint": "eslint",
     "admin:reset-password": "node --env-file=.env.local scripts/reset-admin-password.mjs",
-    "admin:setup-pin": "node scripts/create-emergency-pin-hash.mjs"
+    "admin:setup-pin": "node scripts/create-emergency-pin-hash.mjs",
+    "test:delivery": "node --experimental-strip-types --test tests/delivery.test.mjs",
+    "test:images": "node --experimental-strip-types --test tests/inventory-images.test.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/s3-presigned-post": "^3.1152.0",
+    "@aws-sdk/s3-request-presigner": "^3.1152.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/oidc-aws-credentials-provider": "^3.3.13",
     "next": "16.3.8",
     "nodemailer": "^10.0.15",
     "react": "19.2.8",

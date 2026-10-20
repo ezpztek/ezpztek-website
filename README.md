@@ -1,4 +1,14 @@
-# EZPZTEK Landing Page
+# EZPZTEK
+
+## Branch-aware POS and delivery integration foundation
+
+The client portal includes the branch-aware POS and an isolated delivery simulator.
+Foodpanda production remains **disabled** until the official Restaurant Plugin API
+adapter, approved credentials, vendor configuration, and end-to-end tests are complete.
+
+Read [the deployment and onboarding guide](docs/foodpanda-integration.md) before
+applying migrations 007-009. Existing landing, invitation, and authentication flows
+are retained below. The development package is not evidence of a live connection.
 
 Phase 1 company landing page for EZPZTEK, built with Next.js App Router, TypeScript, and Tailwind CSS. It includes a Supabase-backed consultation form and Hostinger Email confirmation workflow.
 
@@ -42,6 +52,9 @@ Copy `.env.example` to `.env.local` and replace every placeholder:
 | `SMTP_PASS` | Hostinger mailbox password |
 | `SMTP_FROM_NAME` | Sender name shown to recipients |
 | `CONTACT_TO_EMAIL` | Inbox that receives new inquiry notifications |
+| `AWS_REGION` | Region for the private inventory-image bucket; `ap-southeast-1` is the Singapore default |
+| `AWS_S3_INVENTORY_BUCKET` | Private S3 bucket name; never expose it through a `NEXT_PUBLIC_` variable |
+| `AWS_ROLE_ARN` | Vercel OIDC role ARN; leave empty locally when using the AWS CLI credential chain |
 
 Never commit `.env.local`, the Supabase secret key, or the mailbox password.
 
@@ -237,11 +250,16 @@ Apply
 [`supabase/migrations/202610070006_create_inventory_pos.sql`](supabase/migrations/202610070006_create_inventory_pos.sql)
 after the client portal migration. It adds a client-isolated product catalog,
 POS receipts and line items, and an immutable stock-movement ledger.
+After migrations 007 and 010, apply
+[`supabase/migrations/202610200011_inventory_catalog_options.sql`](supabase/migrations/202610200011_inventory_catalog_options.sql)
+for client-managed category options, canonical units, and generated SKUs when
+the optional SKU field is left blank.
 
 The three modules share one stock balance:
 
 - **Inventory Management** creates products, SKUs, optional barcodes, pricing,
-  opening stock, reorder levels, and active/inactive availability.
+  opening stock, reorder levels, active/inactive availability, and up to three
+  private AWS S3 images per product.
 - **Point of Sale** displays only active products whose stock is greater than
   zero. Checkout locks and rechecks every selected product, creates the receipt,
   and deducts stock in one database transaction.
@@ -255,14 +273,16 @@ authorized server actions.
 
 ## Platform direction
 
-The agreed Vercel + Supabase + Hostinger-media architecture is recorded in
-[`docs/platform-architecture.md`](docs/platform-architecture.md). The Hostinger
-media service is intentionally deferred until the inventory/POS phase.
+The Vercel + Supabase + private AWS S3 architecture is recorded in
+[`docs/platform-architecture.md`](docs/platform-architecture.md). Product-image
+setup is documented in
+[`docs/aws-inventory-image-storage.md`](docs/aws-inventory-image-storage.md).
 
 ## Verification
 
 ```bash
 npm run lint
+npm run test:images
 npm run build
 ```
 
@@ -278,6 +298,9 @@ npm run build
 - `supabase/migrations/202610060004_create_client_portal.sql` — invitations, approvals, and modular client access
 - `supabase/migrations/202610060005_promote_qualified_inquiries.sql` — qualified-lead client automation
 - `supabase/migrations/202610070006_create_inventory_pos.sql` — shared inventory ledger, atomic POS, and stock control
+- `supabase/migrations/202610120010_inventory_product_images.sql` — private S3 image metadata, ownership, slots, and lifecycle
+- `supabase/migrations/202610200011_inventory_catalog_options.sql` — managed categories, fixed units, and optional SKU generation
+- `src/app/api/inventory/images` — authenticated upload, verification, read, and deletion routes
 - `src/app/admin` — protected operations workspace
 - `src/app/(client-auth)` — client registration and login
 - `src/app/portal` — protected client demo workspace

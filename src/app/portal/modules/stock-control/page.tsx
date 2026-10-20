@@ -1,3 +1,5 @@
+import { BranchSelector } from "@/components/branch-selector";
+import { getClientBranch } from "@/lib/branches";
 import { connection } from "next/server";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { requireClientModule } from "@/lib/client-auth";
@@ -6,7 +8,7 @@ import { adjustStockAction } from "../actions";
 
 const movementLabels: Record<string, string> = {
   opening: "Opening stock",
-  sale: "POS sale",
+  sale: "Sale deduction",
   receipt: "Stock received",
   adjustment_in: "Adjustment in",
   adjustment_out: "Adjustment out",
@@ -27,22 +29,25 @@ function formatDate(value: string) {
 export default async function StockControlPage({
   searchParams,
 }: {
-  searchParams: Promise<{ adjusted?: string; error?: string }>;
+  searchParams: Promise<{ branch?: string; adjusted?: string; error?: string }>;
 }) {
   await connection();
   const { client } = await requireClientModule("stock-control");
   const params = await searchParams;
+  const { branch, branches } = await getClientBranch(client.clientId, params.branch);
   const supabase = createAdminClient();
   const [productsResult, movementsResult] = await Promise.all([
     supabase
       .from("inventory_products")
       .select("id, sku, name, unit, stock_on_hand, reorder_level, is_active")
       .eq("client_id", client.clientId)
-      .order("name"),
+      .eq("branch_id", branch.id)
+      .order("name").limit(1000),
     supabase
       .from("inventory_stock_movements")
-      .select("id, product_id, movement_type, quantity_change, balance_after, reference_type, reference_id, note, created_at, inventory_products!inner(name, sku, unit)")
+      .select("id, product_id, movement_type, quantity_change, balance_after, reference_type, reference_id, note, created_at, inventory_products!movement_product_owner!inner(name, sku, unit)")
       .eq("client_id", client.clientId)
+      .eq("branch_id", branch.id)
       .order("created_at", { ascending: false })
       .limit(80),
   ]);
@@ -64,11 +69,13 @@ export default async function StockControlPage({
         <div><p className="client-kicker">Item stock control</p><h1>Every unit has a history.</h1><p>Receive deliveries, record adjustments, and trace every POS deduction in one immutable ledger.</p></div>
         <a className="client-module-action" href="#stock-entry">Record movement</a>
       </header>
+      <BranchSelector branches={branches} selected={branch.id} action="/portal/modules/stock-control" />
 
       {params.adjusted && <div className="client-module-success"><strong>Stock updated.</strong><span>The new quantity is already reflected in Inventory and POS.</span></div>}
       {params.error && <div className="client-module-error">{errorMessages[params.error] || errorMessages.save}</div>}
-      {(productsResult.error || movementsResult.error) && <div className="client-module-error">Stock data is unavailable. Run migration 202610070006 in Supabase.</div>}
+      {(productsResult.error || movementsResult.error) && <div className="client-module-error">Stock data is unavailable. Verify migrations 006-009 and database connectivity.</div>}
 
+      {products.length === 1000 && <p className="client-module-error">Only the first 1,000 products are loaded. Unit and low-stock summaries describe this loaded set.</p>}
       <section className="stock-summary-grid">
         <article><small>Total units</small><strong>{totalUnits.toLocaleString("en-PH")}</strong><span>Across {products.length} products</span></article>
         <article className={lowStockCount ? "warning" : ""}><small>Needs attention</small><strong>{lowStockCount}</strong><span>Low or out of stock</span></article>
@@ -101,6 +108,7 @@ export default async function StockControlPage({
         <aside className="stock-entry-card" id="stock-entry">
           <p className="client-kicker">Stock entry</p><h2>Record a movement</h2><p>Positive movements add stock. Sales are deducted automatically by POS.</p>
           <form action={adjustStockAction}>
+            <input type="hidden" name="branchId" value={branch.id} />
             <label>Item<select name="productId" required defaultValue=""><option value="" disabled>Select an item</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.stock_on_hand} {product.unit}</option>)}</select></label>
             <label>Movement<select name="movementType" defaultValue="receipt"><option value="receipt">Receive delivery (+)</option><option value="adjustment_in">Manual adjustment (+)</option><option value="return">Customer return (+)</option><option value="adjustment_out">Manual adjustment (−)</option><option value="damage">Damaged / lost (−)</option></select></label>
             <label>Quantity<input name="quantity" type="number" min="1" step="1" required /></label>
