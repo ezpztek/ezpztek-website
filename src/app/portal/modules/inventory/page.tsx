@@ -8,6 +8,7 @@ import { inventoryUnits, inventoryUnitValues, isGeneratedInventorySku } from "@/
 import { isInventoryImageStorageConfigured } from "@/lib/inventory-images/s3";
 import { connection } from "next/server";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { requireClientModule } from "@/lib/client-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,34 +32,17 @@ export default async function InventoryManagementPage({
   const params = await searchParams;
   const { branch, branches } = await getClientBranch(client.clientId, params.branch);
   const supabase = createAdminClient();
-  const [productsResult, imagesResult, categoriesResult] = await Promise.all([
-    supabase.from("inventory_products")
-      .select("id, sku, barcode, name, category, unit, sale_price_centavos, cost_centavos, stock_on_hand, reorder_level, is_active, updated_at")
-      .eq("client_id", client.clientId).eq("branch_id", branch.id)
-      .order("name").limit(1000),
-    supabase.from("inventory_product_images")
-      .select("id, product_id, status, position, is_primary")
-      .eq("client_id", client.clientId).eq("branch_id", branch.id)
-      .in("status", ["pending", "ready", "deleting"])
-      .order("position").limit(3000),
+  const [categoriesResult, metricsResult] = await Promise.all([
     supabase.from("inventory_categories")
       .select("id,name").eq("client_id", client.clientId).eq("is_active", true)
       .order("name").limit(500),
+    supabase.rpc("get_branch_inventory_summary", {
+      p_client_id: client.clientId,
+      p_branch_id: branch.id,
+    }),
   ]);
-  const { data, error } = productsResult;
-  const { data: imageData, error: imageError } = imagesResult;
   const { data: categoryData, error: categoryError } = categoriesResult;
-  const products = data || [];
-  const categoryMap = new Map<string, { id: string; name: string }>();
-  for (const item of categoryData || []) {
-    categoryMap.set(item.name.trim().toLocaleLowerCase("en-PH"), item);
-  }
-  for (const product of products) {
-    const name = product.category.trim();
-    const key = name.toLocaleLowerCase("en-PH");
-    if (name && !categoryMap.has(key)) categoryMap.set(key, { id: `legacy-${key}`, name });
-  }
-  const categories = Array.from(categoryMap.values())
+  const categories = (categoryData || [])
     .sort((left, right) => left.name.localeCompare(right.name, "en-PH"));
   const requestedCategory = typeof params.category === "string"
     ? params.category.trim().toLocaleLowerCase("en-PH")
@@ -66,22 +50,27 @@ export default async function InventoryManagementPage({
   const selectedCategory = categories.find(
     (item) => item.name.trim().toLocaleLowerCase("en-PH") === requestedCategory,
   )?.name ?? "";
-  const selectedCategoryKey = selectedCategory.toLocaleLowerCase("en-PH");
-  const displayedProducts = selectedCategory
-    ? products.filter(
-      (product) => product.category.trim().toLocaleLowerCase("en-PH") === selectedCategoryKey,
-    )
-    : products;
   const requestedPage = Number.parseInt(params.page || "1", 10);
-  const pageCount = Math.max(1, Math.ceil(displayedProducts.length / INVENTORY_PAGE_SIZE));
-  const currentPage = Number.isSafeInteger(requestedPage)
-    ? Math.min(Math.max(requestedPage, 1), pageCount)
+  const currentPage = Number.isSafeInteger(requestedPage) && requestedPage > 0
+    ? requestedPage
     : 1;
   const firstVisibleIndex = (currentPage - 1) * INVENTORY_PAGE_SIZE;
-  const visibleProducts = displayedProducts.slice(
-    firstVisibleIndex,
-    firstVisibleIndex + INVENTORY_PAGE_SIZE,
-  );
+  let productQuery = supabase.from("inventory_products")
+    .select(
+      "id, sku, barcode, name, category, unit, sale_price_centavos, cost_centavos, stock_on_hand, reorder_level, is_active, updated_at",
+      { count: "exact" },
+    )
+    .eq("client_id", client.clientId)
+    .eq("branch_id", branch.id);
+  if (selectedCategory) productQuery = productQuery.eq("category", selectedCategory);
+  const productsResult = await productQuery
+    .order("name")
+    .order("id")
+    .range(firstVisibleIndex, firstVisibleIndex + INVENTORY_PAGE_SIZE - 1);
+  const { data, error } = productsResult;
+  const visibleProducts = data || [];
+  const displayedProductCount = productsResult.count || 0;
+  const pageCount = Math.max(1, Math.ceil(displayedProductCount / INVENTORY_PAGE_SIZE));
   function pageHref(page: number) {
     const query = new URLSearchParams();
     if (params.branch) query.set("branch", params.branch);
@@ -90,6 +79,19 @@ export default async function InventoryManagementPage({
     const value = query.toString();
     return value ? `/portal/modules/inventory?${value}` : "/portal/modules/inventory";
   }
+  if (currentPage > pageCount) redirect(pageHref(pageCount));
+
+  const visibleProductIds = visibleProducts.map((product) => product.id);
+  const imagesResult = visibleProductIds.length
+    ? await supabase.from("inventory_product_images")
+      .select("id, product_id, status, position, is_primary")
+      .eq("client_id", client.clientId)
+      .eq("branch_id", branch.id)
+      .in("product_id", visibleProductIds)
+      .in("status", ["pending", "ready", "deleting"])
+      .order("position")
+    : { data: [], error: null };
+  const { data: imageData, error: imageError } = imagesResult;
   const imageUploadEnabled = !imageError && isInventoryImageStorageConfigured();
   type ProductImageRow = {
     id: string;
@@ -112,18 +114,12 @@ export default async function InventoryManagementPage({
     current.push(normalized);
     imagesByProduct.set(normalized.productId, current);
   }
-  const activeProducts = products.filter((product) => product.is_active);
-  const lowStock = activeProducts.filter(
-    (product) => product.stock_on_hand <= product.reorder_level,
-  );
-  const inventoryValue = products.reduce(
-    (total, product) => total + product.stock_on_hand * product.cost_centavos,
-    0,
-  );
-  const retailValue = products.reduce(
-    (total, product) => total + product.stock_on_hand * product.sale_price_centavos,
-    0,
-  );
+  const metrics = metricsResult.data?.[0];
+  const productCount = Number(metrics?.product_count || 0);
+  const activeProductCount = Number(metrics?.active_product_count || 0);
+  const lowStockCount = Number(metrics?.low_stock_count || 0);
+  const inventoryValue = Number(metrics?.inventory_cost_value || 0);
+  const retailValue = Number(metrics?.inventory_retail_value || 0);
 
   const errorMessages: Record<string, string> = {
     invalid: "Check the product details and try again.",
@@ -147,27 +143,26 @@ export default async function InventoryManagementPage({
 
       {(params.created || params.updated) && <div className="client-module-success"><strong>{params.created ? "Item created." : "Item updated."}</strong><span>POS and stock control now use the latest product details.</span></div>}
       {params.error && <div className="client-module-error">{errorMessages[params.error] || errorMessages.save}</div>}
-      {error && <div className="client-module-error">Inventory data is unavailable. Verify migrations 006-009 and database connectivity.</div>}
+      {(error || metricsResult.error) && <div className="client-module-error">Inventory data is unavailable. Verify migrations 006-013 and database connectivity.</div>}
       {imageError && <div className="client-module-error">Product images are offline. Apply migration 010 and configure private AWS S3 storage.</div>}
       {!imageError && !imageUploadEnabled && <div className="client-module-error">Product image upload is disabled until AWS_S3_INVENTORY_BUCKET is configured.</div>}
       {categoryError && <div className="client-module-error">Category management is offline. Apply migration 011 before adding a new item.</div>}
 
-      {products.length === 1000 && <p className="client-module-error">Only the first 1,000 products are shown. These inventory summary figures cover loaded products only; add paginated catalog search before larger rollouts.</p>}
       <section className="inventory-metrics">
-        <article><small>Active items</small><strong>{activeProducts.length}</strong><span>{products.length} total records</span></article>
-        <article className={lowStock.length ? "warning" : ""}><small>Low / no stock</small><strong>{lowStock.length}</strong><span>At or below reorder level</span></article>
+        <article><small>Active items</small><strong>{activeProductCount}</strong><span>{productCount} total records</span></article>
+        <article className={lowStockCount ? "warning" : ""}><small>Low / no stock</small><strong>{lowStockCount}</strong><span>At or below reorder level</span></article>
         <article><small>Inventory cost</small><strong>{peso.format(inventoryValue / 100)}</strong><span>Based on current quantity</span></article>
         <article className="dark"><small>Potential retail value</small><strong>{peso.format(retailValue / 100)}</strong><span>Before discounts</span></article>
       </section>
 
       <section className="inventory-workspace">
         <div className="inventory-list">
-          <div className="client-section-heading"><div><p className="client-kicker">Product catalog</p><h2>{selectedCategory || "All items"}</h2></div><span>{displayedProducts.length ? `${firstVisibleIndex + 1}–${firstVisibleIndex + visibleProducts.length} of ` : ""}{displayedProducts.length} products</span></div>
+          <div className="client-section-heading"><div><p className="client-kicker">Product catalog</p><h2>{selectedCategory || "All items"}</h2></div><span>{displayedProductCount ? `${firstVisibleIndex + 1}–${firstVisibleIndex + visibleProducts.length} of ` : ""}{displayedProductCount} products</span></div>
           <InventoryCategoryFilter
             categories={categories.map((item) => item.name)}
             selectedCategory={selectedCategory}
-            shownCount={displayedProducts.length}
-            totalCount={products.length}
+            shownCount={displayedProductCount}
+            totalCount={productCount}
           />
           {visibleProducts.map((product) => {
             const productImages = imagesByProduct.get(product.id) || [];
@@ -224,8 +219,8 @@ export default async function InventoryManagementPage({
               </details>
             );
           })}
-          {!products.length && <div className="client-module-empty"><span>01</span><h2>Add your first item</h2><p>Products with positive stock automatically become available in POS.</p></div>}
-          {!!products.length && !displayedProducts.length && <div className="client-module-empty compact"><span>0 items</span><h2>No items in this category</h2><p>Choose All categories above or assign an item to {selectedCategory}.</p></div>}
+          {!productCount && <div className="client-module-empty"><span>01</span><h2>Add your first item</h2><p>Products with positive stock automatically become available in POS.</p></div>}
+          {!!productCount && !displayedProductCount && <div className="client-module-empty compact"><span>0 items</span><h2>No items in this category</h2><p>Choose All categories above or assign an item to {selectedCategory}.</p></div>}
           {pageCount > 1 && (
             <nav className="inventory-pagination" aria-label="Inventory pages">
               {currentPage > 1

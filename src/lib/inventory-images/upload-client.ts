@@ -24,7 +24,7 @@ async function responseJson(response: Response): Promise<JsonResponse> {
   }
 }
 
-async function fileChecksumSha256(file: File) {
+export async function fileChecksumSha256(file: File) {
   const digest = new Uint8Array(
     await crypto.subtle.digest("SHA-256", await file.arrayBuffer()),
   );
@@ -95,6 +95,48 @@ export async function prepareInventoryImage(file: File) {
     throw new Error("The optimized photo is still larger than 5 MB. Choose a smaller image.");
   }
   const baseName = file.name.replace(/\.[^.]+$/, "") || "inventory-photo";
+  const outputType = blob.type === "image/webp" ? "image/webp" : "image/png";
+  return new File([blob], `${baseName}.${outputType === "image/webp" ? "webp" : "png"}`, {
+    type: outputType,
+    lastModified: Date.now(),
+  });
+}
+
+/** Prepare a compact business logo without flattening transparent pixels. */
+export async function prepareClientLogo(file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Choose an image from your gallery or camera.");
+  }
+  if (file.size < 1 || file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error("The original logo must be smaller than 25 MB.");
+  }
+  if (!inventoryImageContentTypes.includes(
+    file.type as (typeof inventoryImageContentTypes)[number],
+  )) {
+    throw new Error("Use a JPEG, PNG, or WebP logo. SVG and HEIC files are not supported.");
+  }
+
+  const image = await loadBrowserImage(file);
+  const largestDimension = Math.max(image.naturalWidth, image.naturalHeight);
+  const maximumDimension = 720;
+  if (largestDimension <= maximumDimension && file.size <= RESIZE_THRESHOLD_BYTES) {
+    return file;
+  }
+
+  const scale = Math.min(1, maximumDimension / largestDimension);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("This browser cannot prepare the logo.");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  let blob = await canvasBlob(canvas, 0.88);
+  if (blob.size > MAX_INVENTORY_IMAGE_BYTES) blob = await canvasBlob(canvas, 0.72);
+  if (blob.size > MAX_INVENTORY_IMAGE_BYTES) {
+    throw new Error("The optimized logo is still larger than 5 MB. Choose a smaller image.");
+  }
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "business-logo";
   const outputType = blob.type === "image/webp" ? "image/webp" : "image/png";
   return new File([blob], `${baseName}.${outputType === "image/webp" ? "webp" : "png"}`, {
     type: outputType,

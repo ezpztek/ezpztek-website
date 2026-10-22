@@ -24,7 +24,7 @@ function productInput(form: FormData) {
 }
 function refresh() {
   for (const path of ["/portal", "/portal/modules/inventory", "/portal/modules/pos",
-    "/portal/modules/stock-control", "/portal/modules/integrations"]) revalidatePath(path);
+    "/portal/modules/stock-control"]) revalidatePath(path);
 }
 function go(module: string, branchId: string | undefined, parameter: string): never {
   const query = new URLSearchParams(parameter);

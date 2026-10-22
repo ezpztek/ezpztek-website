@@ -12,7 +12,7 @@ export const metadata = {
 export default async function ClientLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ registered?: string; access?: string }>;
+  searchParams: Promise<{ registered?: string; access?: string; password?: string }>;
 }) {
   const session = await getClientSession();
   if (session?.status === "approved") redirect("/portal");
@@ -36,6 +36,7 @@ export default async function ClientLoginPage({
           <h2>Sign in to your workspace</h2>
           <p>Use the credentials you created from your private EZPZTEK invitation.</p>
           {params.registered && <p className="client-form-success">Credentials created. Sign in while your demo awaits approval.</p>}
+          {params.password === "changed" && <p className="client-form-success">Password updated. Sign in again with your new password.</p>}
           {params.access === "unavailable" && <p className="client-form-error">This workspace is currently unavailable. Please contact EZPZTEK.</p>}
           <ClientLoginForm />
           <p className="client-auth-help">Need help? Contact <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@ezpztek.com"}`}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL || "EZPZTEK support"}</a>.</p>
