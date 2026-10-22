@@ -16,6 +16,9 @@ export function ClientPortalSidebar({
 }) {
   const pathname = usePathname();
   const initials = client.businessName.slice(0, 2).toUpperCase();
+  const logoUrl = client.hasLogo
+    ? `/api/client/logo?v=${encodeURIComponent(client.logoUpdatedAt || "current")}`
+    : null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -72,7 +75,9 @@ export function ClientPortalSidebar({
     <>
       <header className="client-mobile-header">
         <Link className="client-mobile-brand" href="/portal">
-          <span><Image src="/ezpztek-logo.png" alt="" width={28} height={28} /></span>
+          <span>{logoUrl
+            ? <Image className="client-company-logo" src={logoUrl} alt={`${client.businessName} logo`} width={38} height={38} unoptimized />
+            : <Image src="/ezpztek-logo.png" alt="" width={28} height={28} />}</span>
           <span><strong>EZPZTEK</strong><small>{client.businessName}</small></span>
         </Link>
         <button
@@ -118,18 +123,20 @@ export function ClientPortalSidebar({
         {client.status === "approved" && (
           <nav aria-label="Client workspace">
             <p>Workspace</p>
-            <Link href="/portal" onClick={() => closeMenu()} className={pathname === "/portal" ? "active" : ""}>Overview</Link>
+            <Link href="/portal" onClick={() => closeMenu()} className={pathname === "/portal" ? "active" : ""}>Summary</Link>
             {modules.map((module) => {
               const href = `/portal/modules/${module.code}`;
-              return <Link href={href} onClick={() => closeMenu()} className={pathname === href ? "active" : ""} key={module.code}>{module.name}</Link>;
+              return <Link href={href} onClick={() => closeMenu()} className={pathname.startsWith(href) ? "active" : ""} key={module.code}>{module.name}</Link>;
             })}
-            {modules.some((module) => module.code === "pos") && (
-              <Link href="/portal/modules/integrations" onClick={() => closeMenu()} className={pathname === "/portal/modules/integrations" ? "active" : ""}>Delivery integrations</Link>
-            )}
+            <Link href="/portal/settings" onClick={() => closeMenu()} className={pathname.startsWith("/portal/settings") ? "active" : ""}>Settings</Link>
           </nav>
         )}
         <div className="client-sidebar-foot">
-          <span className="client-company-avatar">{initials}</span>
+          <span className={`client-company-avatar ${logoUrl ? "has-logo" : ""}`}>
+            {logoUrl
+              ? <Image className="client-company-logo" src={logoUrl} alt={`${client.businessName} logo`} width={38} height={38} unoptimized />
+              : initials}
+          </span>
           <span><strong>{client.businessName}</strong><small>{client.displayName}</small></span>
           <form action={clientLogoutAction}><button type="submit">Sign out</button></form>
         </div>

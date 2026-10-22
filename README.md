@@ -1,14 +1,10 @@
 # EZPZTEK
 
-## Branch-aware POS and delivery integration foundation
+## Branch-aware business workspace
 
-The client portal includes the branch-aware POS and an isolated delivery simulator.
-Foodpanda production remains **disabled** until the official Restaurant Plugin API
-adapter, approved credentials, vendor configuration, and end-to-end tests are complete.
-
-Read [the deployment and onboarding guide](docs/foodpanda-integration.md) before
-applying migrations 007-009. Existing landing, invitation, and authentication flows
-are retained below. The development package is not evidence of a live connection.
+The client portal includes inventory management, point of sale, stock control,
+workspace summaries, and client-managed branding. Delivery integrations are not
+part of the current client-facing product.
 
 Phase 1 company landing page for EZPZTEK, built with Next.js App Router, TypeScript, and Tailwind CSS. It includes a Supabase-backed consultation form and Hostinger Email confirmation workflow.
 
@@ -257,6 +253,9 @@ the optional SKU field is left blank.
 Then apply
 [`supabase/migrations/202610210012_short_pos_receipt_numbers.sql`](supabase/migrations/202610210012_short_pos_receipt_numbers.sql)
 to generate short receipts such as `EZ-BBK-20261021-0001`.
+Finally, apply
+[`supabase/migrations/202610230013_client_branding_and_summary.sql`](supabase/migrations/202610230013_client_branding_and_summary.sql)
+for the client Summary dashboard, fast branch inventory totals, and private business-logo metadata.
 
 The three modules share one stock balance:
 
@@ -268,6 +267,8 @@ The three modules share one stock balance:
   and deducts stock in one database transaction.
 - **Item Stock Control** records deliveries, returns, count adjustments,
   damage, and POS deductions with balance-after accountability.
+- **Client Settings** lets an approved client upload a private S3-hosted business
+  logo and change their Supabase password after confirming the current password.
 
 If another checkout changes the final quantity first, the later sale is safely
 rejected and no partial receipt or stock deduction is committed. All tables are
@@ -285,6 +286,7 @@ setup is documented in
 
 ```bash
 npm run lint
+npm run typecheck
 npm run test:images
 npm run build
 ```
@@ -304,6 +306,7 @@ npm run build
 - `supabase/migrations/202610120010_inventory_product_images.sql` — private S3 image metadata, ownership, slots, and lifecycle
 - `supabase/migrations/202610200011_inventory_catalog_options.sql` — managed categories, fixed units, and optional SKU generation
 - `supabase/migrations/202610210012_short_pos_receipt_numbers.sql` — store-coded four-digit daily POS receipt numbers
+- `supabase/migrations/202610230013_client_branding_and_summary.sql` — client branding and summary metrics
 - `src/app/api/inventory/images` — authenticated upload, verification, read, and deletion routes
 - `src/app/admin` — protected operations workspace
 - `src/app/(client-auth)` — client registration and login

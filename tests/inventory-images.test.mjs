@@ -1,11 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildClientLogoObjectKey,
   buildInventoryImageObjectKey,
   hasExpectedImageSignature,
   inventoryImageUploadError,
   isSameOriginRequest,
   MAX_INVENTORY_IMAGE_BYTES,
+  parseClientLogoIntent,
   parseInventoryImageIntent,
 } from '../src/lib/inventory-images/core.ts';
 
@@ -58,6 +60,42 @@ test('object keys are deterministic, tenant-scoped, and do not use client filena
   assert.equal(
     buildInventoryImageObjectKey({ ...ids, contentType: 'image/webp' }).endsWith('.webp'),
     true,
+  );
+});
+
+test('client logo intent accepts image metadata but rejects tenant-controlled ownership', () => {
+  const logoIntent = {
+    contentType: 'image/png',
+    byteSize: 2048,
+    checksumSha256: `${'B'.repeat(43)}=`,
+  };
+  assert.deepEqual(parseClientLogoIntent(logoIntent), logoIntent);
+  assert.throws(
+    () => parseClientLogoIntent({ ...logoIntent, clientId: ids.clientId }),
+    /UNEXPECTED_IMAGE_FIELD/,
+  );
+  assert.throws(
+    () => parseClientLogoIntent({ ...logoIntent, contentType: 'image/svg+xml' }),
+    /INVALID_IMAGE_TYPE/,
+  );
+});
+
+test('client logo keys stay inside the authenticated client branding prefix', () => {
+  assert.equal(
+    buildClientLogoObjectKey({
+      clientId: ids.clientId,
+      imageId: ids.imageId,
+      contentType: 'image/webp',
+    }),
+    `clients/${ids.clientId}/branding/${ids.imageId}.webp`,
+  );
+  assert.throws(
+    () => buildClientLogoObjectKey({
+      clientId: '../another-client',
+      imageId: ids.imageId,
+      contentType: 'image/png',
+    }),
+    /INVALID_IMAGE_KEY_ID/,
   );
 });
 

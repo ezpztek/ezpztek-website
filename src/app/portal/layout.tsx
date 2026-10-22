@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ClientPortalSidebar } from "@/components/client-portal-sidebar";
-import { requireClient } from "@/lib/client-auth";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getClientModules, requireClient } from "@/lib/client-auth";
 
 export const metadata: Metadata = {
   title: "Client workspace",
@@ -11,17 +10,9 @@ export const metadata: Metadata = {
 
 export default async function ClientPortalLayout({ children }: LayoutProps<"/portal">) {
   const client = await requireClient({ allowPending: true });
-  const supabase = createAdminClient();
-  const { data: accessRows } = client.status === "approved"
-    ? await supabase
-        .from("client_module_access")
-        .select("solution_modules!inner(code, name, sort_order)")
-        .eq("account_user_id", client.userId)
-        .order("sort_order", { referencedTable: "solution_modules" })
-    : { data: [] };
-  const modules = (accessRows || [])
-    .map((row) => Array.isArray(row.solution_modules) ? row.solution_modules[0] : row.solution_modules)
-    .filter((module): module is { code: string; name: string; sort_order: number } => Boolean(module));
+  const modules = client.status === "approved"
+    ? await getClientModules(client.userId)
+    : [];
   return (
     <div className="client-portal-root">
       <ClientPortalSidebar client={client} modules={modules} />

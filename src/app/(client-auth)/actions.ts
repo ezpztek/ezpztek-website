@@ -78,6 +78,11 @@ export async function clientLoginAction(
     return { error: "This client workspace is currently unavailable. Please contact EZPZTEK." };
   }
 
+  await supabase
+    .from("client_portal_accounts")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("user_id", data.user.id);
+
   redirect("/portal");
 }
 

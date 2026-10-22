@@ -17,6 +17,12 @@ export type InventoryImageIntent = {
   checksumSha256: string;
 };
 
+export type ClientLogoIntent = {
+  contentType: InventoryImageContentType;
+  byteSize: number;
+  checksumSha256: string;
+};
+
 const S3_UPLOAD_ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "AWS denied permission to save the image. Check the role and bucket policies.",
   AuthorizationHeaderMalformed: "The AWS upload was signed for the wrong region.",
@@ -91,6 +97,36 @@ export function parseInventoryImageIntent(input: unknown): InventoryImageIntent 
   };
 }
 
+export function parseClientLogoIntent(input: unknown): ClientLogoIntent {
+  const value = record(input);
+  const allowed = ["contentType", "byteSize", "checksumSha256"];
+  if (Object.keys(value).some((key) => !allowed.includes(key))) {
+    throw new Error("UNEXPECTED_IMAGE_FIELD");
+  }
+  if (!isInventoryImageContentType(value.contentType)) {
+    throw new Error("INVALID_IMAGE_TYPE");
+  }
+  if (
+    typeof value.byteSize !== "number" ||
+    !Number.isSafeInteger(value.byteSize) ||
+    value.byteSize < 1 ||
+    value.byteSize > MAX_INVENTORY_IMAGE_BYTES
+  ) {
+    throw new Error("INVALID_IMAGE_SIZE");
+  }
+  if (
+    typeof value.checksumSha256 !== "string" ||
+    !SHA256_BASE64_PATTERN.test(value.checksumSha256)
+  ) {
+    throw new Error("INVALID_IMAGE_CHECKSUM");
+  }
+  return {
+    contentType: value.contentType,
+    byteSize: value.byteSize,
+    checksumSha256: value.checksumSha256,
+  };
+}
+
 export function buildInventoryImageObjectKey({
   clientId,
   branchId,
@@ -108,6 +144,19 @@ export function buildInventoryImageObjectKey({
     throw new Error("INVALID_IMAGE_KEY_ID");
   }
   return `clients/${clientId}/branches/${branchId}/products/${productId}/${imageId}.${extensionForInventoryImage(contentType)}`;
+}
+
+export function buildClientLogoObjectKey({
+  clientId,
+  imageId,
+  contentType,
+}: {
+  clientId: string;
+  imageId: string;
+  contentType: InventoryImageContentType;
+}) {
+  if (![clientId, imageId].every(isUuid)) throw new Error("INVALID_IMAGE_KEY_ID");
+  return `clients/${clientId}/branding/${imageId}.${extensionForInventoryImage(contentType)}`;
 }
 
 export function hasExpectedImageSignature(

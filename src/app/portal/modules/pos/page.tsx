@@ -6,8 +6,8 @@ import { PosReceipts, type PosReceipt } from "@/components/pos-receipts";
 import { BranchSelector } from "@/components/branch-selector";
 import { requireClientModule } from "@/lib/client-auth";
 import { getClientBranch } from "@/lib/branches";
+import { formatPeso } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { money } from "@/lib/delivery/core";
 export default async function PointOfSalePage({ searchParams }: {
   searchParams: Promise<{ branch?: string; error?: string; receipt?: string; requestId?: string }>;
 }) {
@@ -90,11 +90,10 @@ export default async function PointOfSalePage({ searchParams }: {
     <header className="business-module-head pos-head">
       <div><p className="client-kicker">EZPZTEK POS / {branch.name}</p>
         <h1>Sell fast. Keep stock accurate.</h1><p>Branch-isolated checkout with duplicate-request protection.</p>
-        <Link href="/portal/modules/integrations">Delivery orders and integrations</Link>
       </div>
       <div className="pos-daily-summary">
         <span><small>Today / completed sales</small><strong>{summary?.sale_count ?? "--"}</strong></span>
-        <span><small>Today / merchandise total</small><strong>{summary ? money(Number(summary.total_centavos)) : "--"}</strong></span>
+        <span><small>Today / merchandise total</small><strong>{summary ? formatPeso(Number(summary.total_centavos)) : "--"}</strong></span>
       </div>
     </header>
     <BranchSelector branches={branches} selected={branch.id} action="/portal/modules/pos" />
